@@ -305,97 +305,53 @@ function sEl(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
 function sHTML(id,v){var e=document.getElementById(id);if(e)e.innerHTML=v;}
 
 // ---- YAHOO FINANCE FETCH ----
-// Multiple CORS proxies — fallback chain
 var PROXIES = [
   'https://api.allorigins.win/raw?url=',
   'https://corsproxy.io/?',
   'https://api.codetabs.com/v1/proxy?quest='
 ];
-var YF_BASES = [
-  'https://query1.finance.yahoo.com/v8/finance/chart/',
-  'https://query2.finance.yahoo.com/v8/finance/chart/'
-];
 
-// Parse Yahoo Finance response
-function parseYF(data) {
-  var result = data.chart.result[0];
-  var meta = result.meta;
-  var price = meta.regularMarketPrice;
-  var prev  = meta.previousClose || meta.chartPreviousClose || price;
-  var change = price - prev;
-  var pct = prev ? (change / prev) * 100 : 0;
-  return {price: price, change: change, pct: pct, prev: prev};
+function parseYF(data){
+  var r = data.chart.result[0].meta;
+  var price = r.regularMarketPrice;
+  var prev  = r.previousClose || r.chartPreviousClose || price;
+  var ch    = price - prev;
+  return {price:price, change:ch, pct:prev?(ch/prev)*100:0};
 }
 
-// Try one symbol with proxy+base combo, retry on fail
-function fetchYF(symbol, cb, _pi, _bi) {
-  _pi = _pi || 0; _bi = _bi || 0;
-  if(_pi >= PROXIES.length){ cb(new Error('All proxies failed: '+symbol), null); return; }
-  
-  var base = YF_BASES[_bi % YF_BASES.length];
-  var url  = base + encodeURIComponent(symbol) + '?interval=1d&range=1d&_='+Date.now();
-  var proxied = PROXIES[_pi] + encodeURIComponent(url);
-  
-  var timeout = setTimeout(function(){ tryNext(); }, 8000);
-  var done = false;
-  
-  function tryNext(){
-    if(done) return; done = true;
-    clearTimeout(timeout);
-    // Try next proxy
-    fetchYF(symbol, cb, _pi+1, _bi+1);
-  }
-  
-  fetch(proxied, {cache:'no-cache'})
-    .then(function(r){
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      return r.json();
+// Fetch one symbol — try each proxy in order
+function fetchOne(sym, cb, pi){
+  pi = pi||0;
+  if(pi >= PROXIES.length){ cb(null); return; }
+  var url = 'https://query'+(pi%2===0?'1':'2')+'.finance.yahoo.com/v8/finance/chart/'+
+            encodeURIComponent(sym)+'?interval=1d&range=1d&_='+Date.now();
+  var req = PROXIES[pi] + encodeURIComponent(url);
+  var done=false;
+  var t = setTimeout(function(){ if(!done){done=true; fetchOne(sym,cb,pi+1);} }, 6000);
+  fetch(req,{cache:'no-cache'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(done) return; done=true; clearTimeout(t);
+      try{ cb(parseYF(d)); }
+      catch(e){ fetchOne(sym,cb,pi+1); }
     })
-    .then(function(data){
-      if(done) return; done = true;
-      clearTimeout(timeout);
-      try {
-        cb(null, parseYF(data));
-      } catch(e) {
-        fetchYF(symbol, cb, _pi+1, _bi+1);
-      }
-    })
-    .catch(function(){ tryNext(); });
+    .catch(function(){ if(!done){done=true; clearTimeout(t); fetchOne(sym,cb,pi+1);} });
 }
 
-// Fetch symbols in small batches with delay to avoid rate limiting
-function fetchBatch(symbols, cb) {
+// Fetch symbols ONE BY ONE — instant render after each
+function fetchAllSequential(symbols, onEach, onDone){
   var results = {};
-  var BATCH_SIZE = 5;   // fetch 5 at a time
-  var BATCH_DELAY = 300; // 300ms between batches
-  var batches = [];
-  
-  for(var i=0; i<symbols.length; i+=BATCH_SIZE){
-    batches.push(symbols.slice(i, i+BATCH_SIZE));
-  }
-  
-  function runBatch(bIdx){
-    if(bIdx >= batches.length){ cb(results); return; }
-    var batch = batches[bIdx];
-    var pending = batch.length;
-    
-    batch.forEach(function(item){
-      fetchYF(item.sym, function(err, data){
-        if(!err && data) results[item.id] = data;
-        pending--;
-        if(pending === 0){
-          // Update UI progressively as each batch completes
-          renderMacro(results);
-          renderIndia(results);
-          renderMarkets(results);
-          buildTicker();
-          setTimeout(function(){ runBatch(bIdx+1); }, BATCH_DELAY);
-        }
-      });
+  var i = 0;
+  function next(){
+    if(i >= symbols.length){ onDone(results); return; }
+    var item = symbols[i++];
+    fetchOne(item.sym, function(data){
+      if(data){ results[item.id] = data; onEach(item.id, data, results); }
+      // Small delay to avoid hammering proxy
+      setTimeout(next, 150);
     });
   }
-  
-  runBatch(0);
+  next();
 }
 
 // ---- INIT DOM ----
@@ -496,7 +452,7 @@ function buildTicker(){
 // ---- MAIN LOAD ----
 function loadData(){
   var mst = document.getElementById('mst');
-  if(mst){ mst.textContent='Fetching...'; mst.className='sp ld_'; }
+  if(mst){ mst.textContent='Loading...'; mst.className='sp ld_'; }
 
   // Deduplicate symbols
   var allSymbols = [];
@@ -506,32 +462,44 @@ function loadData(){
   MK_DEF.forEach(function(d){    if(!seen[d.id]){seen[d.id]=1; allSymbols.push({id:d.id,sym:d.sym});} });
 
   var total = allSymbols.length;
-  var startTime = Date.now();
+  var fetched = 0;
 
-  fetchBatch(allSymbols, function(data){
-    var fetched = Object.keys(data).length;
-    var now = getNowFull();
-    var elapsed = ((Date.now()-startTime)/1000).toFixed(1);
-
-    sEl('ssync', now);
-    sEl('mt2',  'LIVE: '+now);
-    sEl('it2',  'LIVE: '+now);
-    sEl('mkt2', 'LIVE: '+now);
-
-    if(mst){
-      if(fetched >= total * 0.8){
-        mst.textContent = 'LIVE '+now;
-        mst.className = 'sp ok';
-      } else if(fetched >= total * 0.4){
-        mst.textContent = 'Partial ('+fetched+'/'+total+') '+elapsed+'s';
+  fetchAllSequential(
+    allSymbols,
+    // Called after EACH symbol — instant UI update
+    function(id, data, results){
+      fetched++;
+      // Store in SD for AI
+      SD[id] = data;
+      // Re-render all sections with latest results
+      renderMacro(results);
+      renderIndia(results);
+      renderMarkets(results);
+      buildTicker();
+      // Update status
+      var now = getNowFull();
+      sEl('mt2',  'LIVE: '+now);
+      sEl('it2',  'LIVE: '+now);
+      sEl('mkt2', 'LIVE: '+now);
+      if(mst){
+        mst.textContent = fetched+'/'+total+' loaded...';
         mst.className = 'sp ld_';
-      } else {
-        mst.textContent = 'Low data ('+fetched+'/'+total+') — retry in 1m';
-        mst.className = 'sp er';
       }
+    },
+    // Called when ALL done
+    function(results){
+      var now = getNowFull();
+      sEl('ssync', now);
+      sEl('mt2',  'LIVE: '+now);
+      sEl('it2',  'LIVE: '+now);
+      sEl('mkt2', 'LIVE: '+now);
+      if(mst){
+        mst.textContent = 'LIVE '+now+' ('+fetched+'/'+total+')';
+        mst.className = fetched >= total*0.8 ? 'sp ok' : 'sp ld_';
+      }
+      scheduleNext(AUTO_REFRESH);
     }
-    scheduleNext(AUTO_REFRESH);
-  });
+  );
 }
 
 // ---- SCHEDULE ----
