@@ -78,20 +78,6 @@ html,body{background:var(--bg)!important;color:var(--tx)!important;font-family:v
 .mkp{font-family:var(--ft);font-size:.95rem;font-weight:700}
 .mkch{font-family:var(--ft);font-size:.6rem;padding:2px 5px;border-radius:2px;margin-top:2px;display:inline-block}
 .mkch.up{color:var(--gr);background:var(--grd)}.mkch.dn{color:var(--rd);background:var(--rdd)}
-.aip{background:var(--bg2);border:1px solid var(--b1);border-radius:3px;overflow:hidden}
-.aih{background:rgba(0,212,255,.04);border-bottom:1px solid var(--b1);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px}
-.aib_{background:rgba(0,212,255,.14);border:1px solid rgba(0,212,255,.3);color:var(--cy);font-family:var(--ft);font-size:.58rem;text-transform:uppercase;letter-spacing:.12em;padding:3px 7px;border-radius:2px}
-.ait{font-family:var(--ft);font-size:.68rem;color:var(--tx);margin-left:6px}
-.aid{font-family:var(--ft);font-size:.56rem;color:var(--td);background:var(--god);border:1px solid rgba(240,165,0,.2);padding:3px 7px;border-radius:2px}
-.aik{background:var(--bg3);border:1px solid var(--b2);color:var(--tb);font-family:var(--ft);font-size:.63rem;padding:5px 9px;border-radius:2px;width:190px;outline:none}
-.aik::placeholder{color:var(--td)}
-.bai{background:var(--cyd);border:1px solid rgba(0,212,255,.35);color:var(--cy);font-family:var(--ft);font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;padding:7px 14px;border-radius:2px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:5px}
-.bai:hover{background:rgba(0,212,255,.22)}.bai:disabled{opacity:.4;cursor:not-allowed}
-.aispin{width:9px;height:9px;border:2px solid rgba(0,212,255,.3);border-top-color:var(--cy);border-radius:50%;animation:sp2 .7s linear infinite;display:none}
-@keyframes sp2{to{transform:rotate(360deg)}}
-.aibd{padding:14px}.aie{text-align:center;padding:28px}
-.aeic{font-size:1.8rem;opacity:.18;margin-bottom:8px}
-.aetx{font-family:var(--ft);font-size:.62rem;color:var(--td);line-height:1.8}
 .stb{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--b1);margin-top:14px;flex-wrap:wrap}
 .sbi{display:flex;align-items:center;gap:4px;font-family:var(--ft);font-size:.6rem;color:var(--td)}
 .sbd{width:5px;height:5px;border-radius:50%}
@@ -102,7 +88,6 @@ html,body{background:var(--bg)!important;color:var(--tx)!important;font-family:v
 .fl{display:flex;gap:12px;flex-wrap:wrap}
 .fl a{font-family:var(--ft);font-size:.6rem;color:var(--td);text-decoration:none;transition:color .2s}
 .fl a:hover{color:var(--cy)}
-.fd2{font-family:var(--ft);font-size:.56rem;color:var(--td);width:100%;padding-top:7px;border-top:1px solid var(--b1)}
   </style>
 </head>
 <body>
@@ -172,27 +157,6 @@ html,body{background:var(--bg)!important;color:var(--tx)!important;font-family:v
 </div>
 <div class="mkg" id="mkgrid"></div>
 
-<div class="sh"><span style="font-size:.95rem">🤖</span><span class="st">AI Market Expert</span><span class="sl"></span></div>
-<div class="aip">
-  <div class="aih">
-    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">
-      <span class="aib_">AI Powered</span><span class="ait">Claude AI — Market Intelligence</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
-      <span class="aid">Educational only · Not SEBI advice</span>
-      <input class="aik" id="apikey" placeholder="Anthropic API Key (sk-ant-...)" type="password"/>
-      <button class="bai" id="ai-btn" onclick="runAI()">
-        <div class="aispin" id="ai-spin"></div>
-        <span id="ai-btxt">🔍 Run AI Analysis</span>
-      </button>
-    </div>
-  </div>
-  <div class="aibd" id="ai-body">
-    <div class="aie"><div class="aeic">🧠</div>
-    <div class="aetx">Data load hone ke baad<br/>"Run AI Analysis" dabao</div></div>
-  </div>
-</div>
-
 <div class="stb">
   <div class="sbi"><span class="sbd" style="background:var(--gr)"></span>Gaining: <span id="sb-up">—</span></div>
   <div class="sbi"><span class="sbd" style="background:var(--rd)"></span>Declining: <span id="sb-dn">—</span></div>
@@ -203,71 +167,44 @@ html,body{background:var(--bg)!important;color:var(--tx)!important;font-family:v
 </div>
 
 <div id="ft">
-  <div><div class="fn">Market-<em>O</em>-Pedia</div><div class="fs_">Knowledge That Builds Wealth</div></div>
+  <div>
+    <div class="fn">Market-<em>O</em>-Pedia</div>
+    <div class="fs_">Knowledge That Builds Wealth</div>
+  </div>
   <div class="fl">
     <a href="https://www.youtube.com/@Market-O-Pedia" target="_blank">🎥 YouTube</a>
     <a href="https://market-o-pedia.blogspot.com" target="_blank">🌎 Website</a>
   </div>
-  <div class="fd2">© Market-O-Pedia · Educational only · Not SEBI registered financial advice · ETF prices used as market proxies</div>
 </div>
 </div>
 
 <script>
-// ================================================================
-// MARKET-O-PEDIA — 100% Finnhub (Direct API, No Proxy Needed)
-// 
-// STRATEGY: Use US-listed ETFs as proxies for all global markets
-// This works because Finnhub free supports ALL US-listed securities
-//
-// INDIA:   INDY (Nifty50), INDA (MSCI India), INDB (Financials)
-// GLOBAL:  iShares country ETFs (EWJ, EWH, EWG, EWU etc)
-// MACRO:   BINANCE crypto, OANDA forex, GLD/SLV/USO commodities
-// US:      ^GSPC, ^DJI, ^IXIC direct indices
-// ================================================================
-
 var FKEY = 'd6pqlk9r01qk0cf1icigd6pqlk9r01qk0cf1icj0';
 var FH_BASE = 'https://finnhub.io/api/v1/quote?token=' + FKEY + '&symbol=';
 var REFRESH_MIN = 1;
 var SD = {}, ntmr = null, cdi = null;
 var loadedCount = 0, totalCount = 0;
 
-// ================================================================
-// ALL SYMBOLS — 100% Finnhub, no proxy
-// ================================================================
-
 var ALL_SYMBOLS = [
-  // ---- CRYPTO (Binance via Finnhub) ----
   { id:'btc',     sym:'BINANCE:BTCUSDT',  cat:'macro' },
   { id:'eth',     sym:'BINANCE:ETHUSDT',  cat:'macro' },
-
-  // ---- FOREX (OANDA via Finnhub) ----
   { id:'usdinr',  sym:'OANDA:USD_INR',    cat:'macro' },
   { id:'eurusd',  sym:'OANDA:EUR_USD',    cat:'macro' },
   { id:'gbpusd',  sym:'OANDA:GBP_USD',    cat:'macro' },
-
-  // ---- COMMODITIES (ETFs via Finnhub) ----
-  { id:'gold',    sym:'GLD',              cat:'macro' },  // SPDR Gold ETF
-  { id:'silver',  sym:'SLV',              cat:'macro' },  // iShares Silver ETF
-  { id:'crude',   sym:'USO',              cat:'macro' },  // US Oil Fund
-  { id:'brent',   sym:'BNO',              cat:'macro' },  // United States Brent Oil
-  { id:'natgas',  sym:'UNG',              cat:'macro' },  // US Natural Gas Fund
-
-  // ---- MACRO INDICES (direct via Finnhub) ----
+  { id:'gold',    sym:'GLD',              cat:'macro' },
+  { id:'silver',  sym:'SLV',              cat:'macro' },
+  { id:'crude',   sym:'USO',              cat:'macro' },
+  { id:'brent',   sym:'BNO',              cat:'macro' },
+  { id:'natgas',  sym:'UNG',              cat:'macro' },
   { id:'vix',     sym:'^VIX',             cat:'macro' },
-  { id:'tnote',   sym:'^TNX',             cat:'macro' },  // US 10Y Yield
-  { id:'dxy',     sym:'UUP',              cat:'macro' },  // Dollar Index ETF
-
-  // ---- INDIA (US-listed ETFs tracking Indian markets) ----
-  { id:'nifty',     sym:'INDY',           cat:'india' },  // iShares India 50 (Nifty 50)
-  { id:'sensex',    sym:'INDA',           cat:'india' },  // iShares MSCI India
-  { id:'banknifty', sym:'INDB',           cat:'india' },  // Nifty India Financials ETF
-
-  // ---- US MARKETS (direct indices) ----
+  { id:'tnote',   sym:'^TNX',             cat:'macro' },
+  { id:'dxy',     sym:'UUP',              cat:'macro' },
+  { id:'nifty',     sym:'INDY',           cat:'india' },
+  { id:'sensex',    sym:'INDA',           cat:'india' },
+  { id:'banknifty', sym:'INDB',           cat:'india' },
   { id:'sp500',   sym:'^GSPC',            cat:'market', n:'S&P 500',       c:'United States', f:'🇺🇸', r:'americas' },
   { id:'dji',     sym:'^DJI',             cat:'market', n:'Dow Jones',     c:'United States', f:'🇺🇸', r:'americas' },
   { id:'nasdaq',  sym:'^IXIC',            cat:'market', n:'NASDAQ',        c:'United States', f:'🇺🇸', r:'americas' },
-
-  // ---- GLOBAL MARKETS (iShares country ETFs via Finnhub) ----
   { id:'ftse',    sym:'EWU',              cat:'market', n:'FTSE 100',      c:'United Kingdom',f:'🇬🇧', r:'europe'   },
   { id:'dax',     sym:'EWG',              cat:'market', n:'DAX 40',        c:'Germany',       f:'🇩🇪', r:'europe'   },
   { id:'cac',     sym:'EWQ',              cat:'market', n:'CAC 40',        c:'France',        f:'🇫🇷', r:'europe'   },
@@ -286,9 +223,6 @@ var ALL_SYMBOLS = [
   { id:'ipc',     sym:'EWW',              cat:'market', n:'IPC Mexico',    c:'Mexico',        f:'🇲🇽', r:'americas' },
 ];
 
-// ================================================================
-// MACRO CARD CONFIG
-// ================================================================
 var MACRO_CFG = {
   btc:    { lb:'Bitcoin',     ut:'USD',     cl:'cc',  ic:'&#8383;',   dec:2  },
   eth:    { lb:'Ethereum',    ut:'USD',     cl:'cc',  ic:'&#9830;',   dec:2  },
@@ -304,9 +238,6 @@ var MACRO_CFG = {
   tnote:  { lb:'US 10Y Yield',ut:'%',       cl:'cc',  ic:'&#127981;', dec:3  },
 };
 
-// ================================================================
-// UTILS
-// ================================================================
 function getNow(){ return new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
 function fmt(n,d){
   d=d==null?2:d;
@@ -321,26 +252,18 @@ function D(v){ return v==null?'nu':v>=0?'up':'dn'; }
 function sEl(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; }
 function sHTML(id,v){ var e=document.getElementById(id); if(e) e.innerHTML=v; }
 
-// ================================================================
-// FINNHUB FETCH — direct, no proxy, CORS allowed
-// ================================================================
 function fhFetch(sym, cb){
   var url = FH_BASE + encodeURIComponent(sym);
   fetch(url, {cache:'no-cache'})
     .then(function(r){ return r.json(); })
     .then(function(d){
-      // d.c = current price, d.d = change, d.dp = change%, d.pc = prev close
       if(!d || !d.c || d.c === 0){ cb(null); return; }
       cb({ price: d.c, change: d.d, pct: d.dp });
     })
     .catch(function(){ cb(null); });
 }
 
-// ================================================================
-// DOM INIT
-// ================================================================
 function initDOM(){
-  // Macro grid
   var mg = document.getElementById('mgrid');
   if(mg){
     var macroIds = Object.keys(MACRO_CFG);
@@ -354,7 +277,6 @@ function initDOM(){
     }).join('');
   }
 
-  // Markets grid
   var mkg = document.getElementById('mkgrid');
   if(mkg){
     var mkts = ALL_SYMBOLS.filter(function(s){ return s.cat==='market'; });
@@ -370,9 +292,6 @@ function initDOM(){
   }
 }
 
-// ================================================================
-// RENDER
-// ================================================================
 function renderMacro(id, d){
   SD[id] = d;
   var cfg = MACRO_CFG[id]; if(!cfg) return;
@@ -380,7 +299,6 @@ function renderMacro(id, d){
   var cE = document.getElementById('mc-'+id);
   if(vE){ vE.textContent = fmt(d.price, cfg.dec); vE.className = 'mv '+D(d.change); }
   if(cE){ cE.innerHTML = fC(d.change, d.pct); cE.className = 'mc2 '+D(d.change); }
-  // Auto-update Gold MCX
   if(id==='gold'||id==='usdinr') calcGoldMCX();
   buildTicker();
 }
@@ -388,8 +306,6 @@ function renderMacro(id, d){
 function calcGoldMCX(){
   var g = SD['gold'], u = SD['usdinr'];
   if(!g||!u) return;
-  // GLD = price per 1/10 troy oz in USD
-  // Gold Rs/10g = GLD * 10 * USDINR * 10 / 31.1035
   var goldRs = g.price * 10 * u.price * 10 / 31.1035;
   var vE=document.getElementById('gv'), cE=document.getElementById('gc');
   if(vE){ vE.textContent = fmt(goldRs,0); vE.classList.remove('sk'); }
@@ -446,9 +362,6 @@ function buildTicker(){
   sHTML('tki', html);
 }
 
-// ================================================================
-// MAIN LOAD — all symbols via Finnhub in parallel
-// ================================================================
 function loadData(){
   var mst = document.getElementById('mst');
   if(mst){ mst.textContent='Connecting...'; mst.className='sp ld_'; }
@@ -463,10 +376,8 @@ function loadData(){
   function onOne(item, d){
     if(d){
       loadedCount++;
-      // Route to correct renderer
       if(item.cat==='macro'){
         renderMacro(item.id, d);
-        // Also render usdinr in India panel
         if(item.id==='usdinr') renderIndia('usdinr', d);
       }
       else if(item.cat==='india'){
@@ -474,13 +385,11 @@ function loadData(){
       }
       else if(item.cat==='market'){
         renderMarket(item.id, d);
-        // nifty_m shares data with nifty
         if(item.id==='nifty_m' && !SD['nifty']) renderIndia('nifty', d);
       }
       sEl('sb-loaded', loadedCount+'/'+totalCount);
       if(mst) mst.textContent = 'Loading '+loadedCount+'/'+totalCount;
     }
-    // Check if all done
     var remaining = ALL_SYMBOLS.filter(function(s){ return !SD[s.id]; }).length;
     if((remaining === 0 || loadedCount >= Math.ceil(totalCount*0.8)) && !finished){
       finished = true;
@@ -488,12 +397,10 @@ function loadData(){
     }
   }
 
-  // Fire ALL requests in parallel — Finnhub handles it!
   ALL_SYMBOLS.forEach(function(item){
     fhFetch(item.sym, function(d){ onOne(item, d); });
   });
 
-  // Safety timeout after 20s
   setTimeout(function(){
     if(!finished){ finished=true; onAllDone(); }
   }, 20000);
@@ -513,9 +420,6 @@ function onAllDone(){
   scheduleNext(REFRESH_MIN);
 }
 
-// ================================================================
-// SCHEDULE
-// ================================================================
 function scheduleNext(mins){
   if(ntmr) clearTimeout(ntmr);
   if(cdi)  clearInterval(cdi);
@@ -529,9 +433,6 @@ function scheduleNext(mins){
   ntmr = setTimeout(loadData, mins*60*1000);
 }
 
-// ================================================================
-// TABS
-// ================================================================
 function filt(r,btn){
   document.querySelectorAll('.tbb').forEach(function(t){ t.classList.remove('act'); });
   btn.classList.add('act');
@@ -540,11 +441,6 @@ function filt(r,btn){
   });
 }
 
-
-
-// ================================================================
-// BOOT
-// ================================================================
 function boot(){
   if(document.getElementById('mgrid')){ initDOM(); loadData(); }
   else { setTimeout(boot,100); }
