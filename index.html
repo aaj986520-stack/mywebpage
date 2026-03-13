@@ -77,7 +77,6 @@ html,body{background:var(--bg)!important;color:var(--tx)!important;font-family:v
 .mkp{font-family:var(--ft);font-size:.95rem;font-weight:700}
 .mkch{font-family:var(--ft);font-size:.6rem;padding:2px 5px;border-radius:2px;margin-top:2px;display:inline-block}
 .mkch.up{color:var(--gr);background:var(--grd)}.mkch.dn{color:var(--rd);background:var(--rdd)}
-.src-tag{font-family:var(--ft);font-size:.45rem;padding:1px 4px;border-radius:2px;background:var(--bg3);border:1px solid var(--b1);color:var(--td);margin-left:4px;vertical-align:middle}
 .aip{background:var(--bg2);border:1px solid var(--b1);border-radius:3px;overflow:hidden}
 .aih{background:rgba(0,212,255,.04);border-bottom:1px solid var(--b1);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px}
 .aib_{background:rgba(0,212,255,.14);border:1px solid rgba(0,212,255,.3);color:var(--cy);font-family:var(--ft);font-size:.58rem;text-transform:uppercase;letter-spacing:.12em;padding:3px 7px;border-radius:2px}
@@ -95,8 +94,6 @@ html,body{background:var(--bg)!important;color:var(--tx)!important;font-family:v
 .stb{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--b1);margin-top:14px;flex-wrap:wrap}
 .sbi{display:flex;align-items:center;gap:4px;font-family:var(--ft);font-size:.6rem;color:var(--td)}
 .sbd{width:5px;height:5px;border-radius:50%}
-.api-legend{display:flex;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--b1);margin-top:4px}
-.api-pill{font-family:var(--ft);font-size:.52rem;padding:2px 6px;border-radius:2px;border:1px solid}
 #ft{border-top:1px solid var(--b1);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:6px}
 .fn{font-family:var(--fd);font-weight:700;font-size:.95rem;color:var(--tb)}
 .fn em{color:var(--cy);font-style:normal}
@@ -111,7 +108,7 @@ html,body{background:var(--bg)!important;color:var(--tx)!important;font-family:v
 <div id="mop">
 <div id="tkw">
   <div class="tkt">&#9889; Live Feed</div>
-  <div class="tkw2"><div class="tki" id="tki"><div class="ti2"><span class="tn2">Initializing...</span></div></div></div>
+  <div class="tkw2"><div class="tki" id="tki"><div class="ti2"><span class="tn2">Initializing live feed...</span></div></div></div>
 </div>
 <div id="pg">
 
@@ -176,7 +173,6 @@ html,body{background:var(--bg)!important;color:var(--tx)!important;font-family:v
   <div class="sbi">Sync: <span id="ssync">—</span></div>
   <div class="sbi" style="margin-left:auto;color:var(--go)">Next: <span id="nxt">—</span></div>
 </div>
-<div class="api-legend" id="api-legend"></div>
 </div>
 
 <div id="ft">
@@ -191,268 +187,106 @@ html,body{background:var(--bg)!important;color:var(--tx)!important;font-family:v
 
 <script>
 // ================================================================
-// MARKET-O-PEDIA — Category-Specific APIs (No API Key Needed)
-// CRYPTO    → CoinGecko API (free, no key, no rate limit issues)
-// FOREX     → ExchangeRate API (free, no key)
-// COMMODITIES → Metals.live + Stooq futures (free, no key)
-// INDICES   → Stooq CSV (free, no key)
-// VIX/BONDS → Stooq CSV (free, no key)
+// MARKET-O-PEDIA — Finnhub Primary + Stooq fallback (Indian indices)
+// Finnhub: Crypto, Forex, Global Indices, Commodities ETFs, VIX, Bonds
+// Stooq:   Nifty, Sensex, BankNifty (NSE not on Finnhub free)
 // ================================================================
 
+var FKEY = 'd6pqlk9r01qk0cf1icigd6pqlk9r01qk0cf1icj0';
+var FH   = 'https://finnhub.io/api/v1/quote?token='+FKEY+'&symbol=';
 var REFRESH_MIN = 1;
-var SD = {};
-var ntmr = null, cdi = null;
+var SD = {}, ntmr = null, cdi = null;
 var PROXY = 'https://api.allorigins.win/raw?url=';
-var PROXY2 = 'https://corsproxy.io/?';
 
 // ================================================================
-// CATEGORY 1: CRYPTO — CoinGecko (no key, very reliable)
+// FINNHUB QUOTE — direct call, no proxy needed (CORS allowed)
+// Response: { c: current, d: change, dp: change%, pc: prevClose }
 // ================================================================
-function fetchCrypto(cb) {
-  // Returns all crypto in one single API call
-  var url = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true';
-  
-  function parse(data) {
-    var res = {};
-    if (data.bitcoin) {
-      res.btc = {
-        price:  data.bitcoin.usd,
-        change: data.bitcoin.usd * (data.bitcoin.usd_24h_change / 100),
-        pct:    data.bitcoin.usd_24h_change,
-        src:    'CoinGecko'
-      };
-    }
-    if (data.ethereum) {
-      res.eth = {
-        price:  data.ethereum.usd,
-        change: data.ethereum.usd * (data.ethereum.usd_24h_change / 100),
-        pct:    data.ethereum.usd_24h_change,
-        src:    'CoinGecko'
-      };
-    }
-    return res;
-  }
-
-  // Try direct first (CoinGecko allows CORS)
-  fetch(url, {cache:'no-cache'})
+function fhQuote(symbol, id, cb) {
+  fetch(FH + encodeURIComponent(symbol), {cache:'no-cache'})
     .then(function(r){ return r.json(); })
-    .then(function(d){ cb(parse(d)); })
-    .catch(function() {
-      // Fallback via proxy
-      fetch(PROXY + encodeURIComponent(url), {cache:'no-cache'})
-        .then(function(r){ return r.json(); })
-        .then(function(d){ cb(parse(d)); })
-        .catch(function(){ cb({}); });
-    });
+    .then(function(d){
+      if (!d || !d.c || d.c === 0) { cb(id, null); return; }
+      cb(id, { price: d.c, change: d.d, pct: d.dp });
+    })
+    .catch(function(){ cb(id, null); });
 }
 
 // ================================================================
-// CATEGORY 2: FOREX — ExchangeRate API (free, no key)
+// STOOQ CSV — for Indian indices (Nifty/Sensex/BankNifty)
 // ================================================================
-function fetchForex(cb) {
-  // One call gives all forex rates
-  var url = 'https://open.er-api.com/v6/latest/USD';
-  
-  function parse(data) {
-    var res = {};
-    var rates = data.rates || {};
-    // USD/INR
-    if (rates.INR) res.usdinr = { price: rates.INR, change: 0, pct: 0, src: 'ExchangeRate' };
-    // EUR/USD (we have USD as base, so EUR/USD = 1/rates.EUR)
-    if (rates.EUR) {
-      var eurusd = 1 / rates.EUR;
-      res.eurusd = { price: eurusd, change: 0, pct: 0, src: 'ExchangeRate' };
-    }
-    return res;
-  }
-
-  fetch(url, {cache:'no-cache'})
-    .then(function(r){ return r.json(); })
-    .then(function(d){ cb(parse(d)); })
-    .catch(function() {
-      // Fallback: Frankfurter API
-      var url2 = 'https://api.frankfurter.app/latest?from=USD&to=INR,EUR,GBP,JPY';
-      fetch(url2, {cache:'no-cache'})
-        .then(function(r){ return r.json(); })
-        .then(function(d){
-          var res = {};
-          var r2 = d.rates || {};
-          if (r2.INR) res.usdinr = { price: r2.INR, change: 0, pct: 0, src: 'Frankfurter' };
-          if (r2.EUR) res.eurusd = { price: 1/r2.EUR, change: 0, pct: 0, src: 'Frankfurter' };
-          cb(res);
-        })
-        .catch(function(){ cb({}); });
-    });
-}
-
-// ================================================================
-// CATEGORY 3: COMMODITIES — Metals.live (gold/silver) + Stooq (oil/gas)
-// ================================================================
-function fetchMetals(cb) {
-  // metals.live gives spot gold & silver in USD/troy oz
-  var url = 'https://metals.live/api/spot';
-  
-  function parseMetal(data) {
-    var res = {};
-    if (Array.isArray(data)) {
-      data.forEach(function(item) {
-        if (item.gold != null)   res.gold   = { price: parseFloat(item.gold),   change: 0, pct: 0, src: 'Metals.live' };
-        if (item.silver != null) res.silver = { price: parseFloat(item.silver), change: 0, pct: 0, src: 'Metals.live' };
-      });
-    } else if (data && data.gold) {
-      res.gold   = { price: parseFloat(data.gold),   change: 0, pct: 0, src: 'Metals.live' };
-      res.silver = { price: parseFloat(data.silver), change: 0, pct: 0, src: 'Metals.live' };
-    }
-    return res;
-  }
-
-  fetch(PROXY + encodeURIComponent(url), {cache:'no-cache'})
-    .then(function(r){ return r.json(); })
-    .then(function(d){ cb(parseMetal(d)); })
-    .catch(function(){ cb({}); });
-}
-
-// Stooq CSV fetch for futures (crude, brent, natgas, DXY, VIX, bonds)
-function fetchStooqOne(sym, id, src, cb) {
+function stooqQuote(sym, id, cb) {
   var url = 'https://stooq.com/q/d/l/?s=' + encodeURIComponent(sym) + '&i=d';
-  function parseCSV(csv) {
-    var lines = csv.trim().split('\n').filter(function(l){ return l && !/^Date/i.test(l); });
-    if (!lines.length) return null;
-    var last = lines[lines.length-1].split(',');
-    var prev = lines.length>=2 ? lines[lines.length-2].split(',') : null;
-    var close = parseFloat(last[4]);
-    if (isNaN(close) || close <= 0) return null;
-    var prevClose = prev ? parseFloat(prev[4]) : parseFloat(last[1]);
-    if (isNaN(prevClose) || prevClose <= 0) prevClose = close;
-    var ch = close - prevClose;
-    return { price: close, change: ch, pct: prevClose ? (ch/prevClose)*100 : 0, src: src };
-  }
-
-  function tryProxy(p, next) {
-    fetch(p + encodeURIComponent(url), {cache:'no-cache'})
-      .then(function(r){ return r.text(); })
-      .then(function(csv){
-        var d = parseCSV(csv);
-        if (d) cb(id, d); else next();
-      })
-      .catch(next);
-  }
-
-  tryProxy(PROXY, function(){
-    tryProxy(PROXY2, function(){ cb(id, null); });
-  });
-}
-
-function fetchCommodities(cb) {
-  var futures = [
-    { sym: 'cl.f',     id: 'crude',  label: 'Crude WTI' },
-    { sym: 'lcousd.f', id: 'brent',  label: 'Brent Oil' },
-    { sym: 'ng.f',     id: 'natgas', label: 'Natural Gas' },
-  ];
-  var res = {};
-  var pending = futures.length;
-  futures.forEach(function(f) {
-    fetchStooqOne(f.sym, f.id, 'Stooq', function(id, data) {
-      if (data) res[id] = data;
-      pending--;
-      if (pending === 0) cb(res);
-    });
-  });
+  fetch(PROXY + encodeURIComponent(url), {cache:'no-cache'})
+    .then(function(r){ return r.text(); })
+    .then(function(csv){
+      var lines = csv.trim().split('\n').filter(function(l){ return l && !/^Date/i.test(l); });
+      if (!lines.length) { cb(id, null); return; }
+      var last = lines[lines.length-1].split(',');
+      var prev = lines.length>=2 ? lines[lines.length-2].split(',') : null;
+      var close = parseFloat(last[4]);
+      if (isNaN(close)||close<=0) { cb(id, null); return; }
+      var prevClose = prev ? parseFloat(prev[4]) : parseFloat(last[1]);
+      if (isNaN(prevClose)||prevClose<=0) prevClose = close;
+      var ch = close - prevClose;
+      cb(id, { price: close, change: ch, pct: prevClose?(ch/prevClose)*100:0 });
+    })
+    .catch(function(){ cb(id, null); });
 }
 
 // ================================================================
-// CATEGORY 4: MARKET INDICES — Stooq CSV (all indices)
+// SYMBOL DEFINITIONS
+// Finnhub covers: crypto (BINANCE:), forex (OANDA:), global indices, ETFs
+// Stooq covers:   Indian indices (NSE not supported on Finnhub free)
 // ================================================================
-var INDEX_SYMS = [
-  // India
-  { sym:'^nsei',    id:'nifty',     src:'Stooq' },
-  { sym:'^bsesn',   id:'sensex',    src:'Stooq' },
-  { sym:'^nsebank', id:'banknifty', src:'Stooq' },
-  // Global
-  { sym:'^spx',     id:'sp500',     src:'Stooq' },
-  { sym:'^dji',     id:'dji',       src:'Stooq' },
-  { sym:'^ndx',     id:'nasdaq',    src:'Stooq' },
-  { sym:'^ftse',    id:'ftse',      src:'Stooq' },
-  { sym:'^dax',     id:'dax',       src:'Stooq' },
-  { sym:'^cac',     id:'cac',       src:'Stooq' },
-  { sym:'^nk225',   id:'nikkei',    src:'Stooq' },
-  { sym:'^hsi',     id:'hangseng',  src:'Stooq' },
-  { sym:'^ssec',    id:'shanghai',  src:'Stooq' },
-  { sym:'^kospi',   id:'kospi',     src:'Stooq' },
-  { sym:'^asx',     id:'asx200',    src:'Stooq' },
-  { sym:'^ibex',    id:'ibex',      src:'Stooq' },
-  { sym:'^mib',     id:'mib',       src:'Stooq' },
-  { sym:'^aex',     id:'aex',       src:'Stooq' },
-  { sym:'^bvsp',    id:'bovespa',   src:'Stooq' },
-  { sym:'^tsx',     id:'tsx',       src:'Stooq' },
-  { sym:'^sti',     id:'sti',       src:'Stooq' },
-  { sym:'^ipc',     id:'ipc',       src:'Stooq' },
-];
 
-// ================================================================
-// CATEGORY 5: MACRO — VIX, DXY, US10Y via Stooq
-// ================================================================
-var MACRO_STOOQ = [
-  { sym:'^vix',    id:'vix',   src:'Stooq' },
-  { sym:'dx.f',    id:'dxy',   src:'Stooq' },
-  { sym:'10usy.b', id:'tnote', src:'Stooq' },
-];
-
-// ================================================================
-// SEQUENTIAL INDEX FETCHER (one by one to avoid rate limits)
-// ================================================================
-function fetchIndicesSeq(list, onEach, onDone) {
-  var i = 0;
-  function next() {
-    if (i >= list.length) { onDone(); return; }
-    var item = list[i++];
-    fetchStooqOne(item.sym, item.id, item.src, function(id, data) {
-      onEach(id, data);
-      next();
-    });
-  }
-  next();
-}
-
-// ================================================================
-// MACRO CARD DEFINITIONS
-// ================================================================
+// Macro cards — all via Finnhub
 var MACROS = [
-  { id:'btc',    lb:'Bitcoin',     ut:'USD',     cl:'cc',  ic:'&#8383;',   dec:0 },
-  { id:'eth',    lb:'Ethereum',    ut:'USD',     cl:'cc',  ic:'&#9830;',   dec:2 },
-  { id:'gold',   lb:'Gold',        ut:'$/oz',    cl:'cg',  ic:'&#129756;', dec:2 },
-  { id:'silver', lb:'Silver',      ut:'$/oz',    cl:'cg',  ic:'&#129756;', dec:2 },
-  { id:'crude',  lb:'Crude WTI',   ut:'$/bbl',   cl:'cr',  ic:'&#128167;', dec:2 },
-  { id:'brent',  lb:'Brent Oil',   ut:'$/bbl',   cl:'cr',  ic:'&#128167;', dec:2 },
-  { id:'natgas', lb:'Natural Gas', ut:'$/MMBtu', cl:'cr',  ic:'&#128167;', dec:2 },
-  { id:'usdinr', lb:'USD / INR',   ut:'Rs',      cl:'cgr', ic:'&#8377;',   dec:2 },
-  { id:'eurusd', lb:'EUR / USD',   ut:'Rate',    cl:'cc',  ic:'&#128177;', dec:4 },
-  { id:'dxy',    lb:'DXY Index',   ut:'pts',     cl:'cg',  ic:'&#128178;', dec:2 },
-  { id:'vix',    lb:'VIX Fear',    ut:'pts',     cl:'cr',  ic:'&#9889;',   dec:2 },
-  { id:'tnote',  lb:'US 10Y Yield',ut:'%',       cl:'cc',  ic:'&#127981;', dec:3 },
+  { id:'btc',    sym:'BINANCE:BTCUSDT', lb:'Bitcoin',     ut:'USD',     cl:'cc',  ic:'&#8383;',   dec:0,  src:'fh' },
+  { id:'eth',    sym:'BINANCE:ETHUSDT', lb:'Ethereum',    ut:'USD',     cl:'cc',  ic:'&#9830;',   dec:2,  src:'fh' },
+  { id:'gold',   sym:'GLD',             lb:'Gold (GLD)',  ut:'$/shr',   cl:'cg',  ic:'&#129756;', dec:2,  src:'fh' },
+  { id:'silver', sym:'SLV',             lb:'Silver (SLV)',ut:'$/shr',   cl:'cg',  ic:'&#129756;', dec:2,  src:'fh' },
+  { id:'crude',  sym:'USO',             lb:'Crude (USO)', ut:'$/shr',   cl:'cr',  ic:'&#128167;', dec:2,  src:'fh' },
+  { id:'brent',  sym:'BNO',             lb:'Brent (BNO)', ut:'$/shr',   cl:'cr',  ic:'&#128167;', dec:2,  src:'fh' },
+  { id:'natgas', sym:'UNG',             lb:'Nat.Gas(UNG)',ut:'$/shr',   cl:'cr',  ic:'&#128167;', dec:2,  src:'fh' },
+  { id:'usdinr', sym:'OANDA:USD_INR',   lb:'USD / INR',   ut:'Rs',      cl:'cgr', ic:'&#8377;',   dec:2,  src:'fh' },
+  { id:'eurusd', sym:'OANDA:EUR_USD',   lb:'EUR / USD',   ut:'Rate',    cl:'cc',  ic:'&#128177;', dec:4,  src:'fh' },
+  { id:'dxy',    sym:'UUP',             lb:'DXY (UUP)',   ut:'$/shr',   cl:'cg',  ic:'&#128178;', dec:2,  src:'fh' },
+  { id:'vix',    sym:'^VIX',            lb:'VIX Fear',    ut:'pts',     cl:'cr',  ic:'&#9889;',   dec:2,  src:'fh' },
+  { id:'tnote',  sym:'^TNX',            lb:'US 10Y Yield',ut:'%',       cl:'cc',  ic:'&#127981;', dec:3,  src:'fh' },
 ];
 
+// India — Stooq (NSE free data via CSV)
+var INDIA_SQ = [
+  { id:'nifty',     sym:'^nsei',    el:['nv','nc'], dec:2, big:true },
+  { id:'sensex',    sym:'^bsesn',   el:['sv','sc'], dec:0 },
+  { id:'banknifty', sym:'^nsebank', el:['bv','bc'], dec:0 },
+];
+
+// Global Markets — Finnhub indices
 var MARKETS = [
-  { id:'sp500',   n:'S&P 500',        c:'United States', f:'🇺🇸', r:'americas' },
-  { id:'dji',     n:'Dow Jones',      c:'United States', f:'🇺🇸', r:'americas' },
-  { id:'nasdaq',  n:'NASDAQ',         c:'United States', f:'🇺🇸', r:'americas' },
-  { id:'ftse',    n:'FTSE 100',       c:'United Kingdom',f:'🇬🇧', r:'europe'   },
-  { id:'dax',     n:'DAX 40',         c:'Germany',       f:'🇩🇪', r:'europe'   },
-  { id:'cac',     n:'CAC 40',         c:'France',        f:'🇫🇷', r:'europe'   },
-  { id:'nikkei',  n:'Nikkei 225',     c:'Japan',         f:'🇯🇵', r:'asia'     },
-  { id:'hangseng',n:'Hang Seng',      c:'Hong Kong',     f:'🇭🇰', r:'asia'     },
-  { id:'shanghai',n:'Shanghai Comp.', c:'China',         f:'🇨🇳', r:'asia'     },
-  { id:'sensex',  n:'SENSEX',         c:'India',         f:'🇮🇳', r:'asia'     },
-  { id:'nifty',   n:'Nifty 50',       c:'India',         f:'🇮🇳', r:'asia'     },
-  { id:'kospi',   n:'KOSPI',          c:'South Korea',   f:'🇰🇷', r:'asia'     },
-  { id:'asx200',  n:'ASX 200',        c:'Australia',     f:'🇦🇺', r:'asia'     },
-  { id:'ibex',    n:'IBEX 35',        c:'Spain',         f:'🇪🇸', r:'europe'   },
-  { id:'mib',     n:'FTSE MIB',       c:'Italy',         f:'🇮🇹', r:'europe'   },
-  { id:'aex',     n:'AEX Index',      c:'Netherlands',   f:'🇳🇱', r:'europe'   },
-  { id:'bovespa', n:'Bovespa',        c:'Brazil',        f:'🇧🇷', r:'americas' },
-  { id:'tsx',     n:'TSX Composite',  c:'Canada',        f:'🇨🇦', r:'americas' },
-  { id:'sti',     n:'Straits Times',  c:'Singapore',     f:'🇸🇬', r:'asia'     },
-  { id:'ipc',     n:'IPC Mexico',     c:'Mexico',        f:'🇲🇽', r:'americas' },
+  { id:'sp500',    sym:'^GSPC',    n:'S&P 500',        c:'United States', f:'🇺🇸', r:'americas', src:'fh' },
+  { id:'dji',      sym:'^DJI',     n:'Dow Jones',      c:'United States', f:'🇺🇸', r:'americas', src:'fh' },
+  { id:'nasdaq',   sym:'^IXIC',    n:'NASDAQ',         c:'United States', f:'🇺🇸', r:'americas', src:'fh' },
+  { id:'ftse',     sym:'^FTSE',    n:'FTSE 100',       c:'United Kingdom',f:'🇬🇧', r:'europe',   src:'fh' },
+  { id:'dax',      sym:'^GDAXI',   n:'DAX 40',         c:'Germany',       f:'🇩🇪', r:'europe',   src:'fh' },
+  { id:'cac',      sym:'^FCHI',    n:'CAC 40',         c:'France',        f:'🇫🇷', r:'europe',   src:'fh' },
+  { id:'nikkei',   sym:'^N225',    n:'Nikkei 225',     c:'Japan',         f:'🇯🇵', r:'asia',     src:'fh' },
+  { id:'hangseng', sym:'^HSI',     n:'Hang Seng',      c:'Hong Kong',     f:'🇭🇰', r:'asia',     src:'fh' },
+  { id:'kospi',    sym:'^KS11',    n:'KOSPI',          c:'South Korea',   f:'🇰🇷', r:'asia',     src:'fh' },
+  { id:'asx200',   sym:'^AXJO',    n:'ASX 200',        c:'Australia',     f:'🇦🇺', r:'asia',     src:'fh' },
+  { id:'ibex',     sym:'^IBEX',    n:'IBEX 35',        c:'Spain',         f:'🇪🇸', r:'europe',   src:'fh' },
+  { id:'bovespa',  sym:'^BVSP',    n:'Bovespa',        c:'Brazil',        f:'🇧🇷', r:'americas', src:'fh' },
+  { id:'tsx',      sym:'^GSPTSE',  n:'TSX Composite',  c:'Canada',        f:'🇨🇦', r:'americas', src:'fh' },
+  // Stooq for indices Finnhub may not cover on free tier
+  { id:'shanghai', sym:'^ssec',    n:'Shanghai Comp.', c:'China',         f:'🇨🇳', r:'asia',     src:'sq' },
+  { id:'mib',      sym:'^mib',     n:'FTSE MIB',       c:'Italy',         f:'🇮🇹', r:'europe',   src:'sq' },
+  { id:'aex',      sym:'^aex',     n:'AEX Index',      c:'Netherlands',   f:'🇳🇱', r:'europe',   src:'sq' },
+  { id:'sti',      sym:'^sti',     n:'Straits Times',  c:'Singapore',     f:'🇸🇬', r:'asia',     src:'sq' },
+  { id:'ipc',      sym:'^ipc',     n:'IPC Mexico',     c:'Mexico',        f:'🇲🇽', r:'americas', src:'sq' },
+  // India in markets panel — use SD from india fetch
+  { id:'nifty',    sym:'^nsei',    n:'Nifty 50',       c:'India',         f:'🇮🇳', r:'asia',     src:'sq' },
+  { id:'sensex',   sym:'^bsesn',   n:'SENSEX',         c:'India',         f:'🇮🇳', r:'asia',     src:'sq' },
 ];
 
 // ================================================================
@@ -460,13 +294,13 @@ var MARKETS = [
 // ================================================================
 function getNow(){ return new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
 function fmt(n,d){
-  d = d==null ? 2 : d;
-  if (n==null||isNaN(n)) return '—';
+  d=d==null?2:d;
+  if(n==null||isNaN(n))return '—';
   return Number(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
 }
 function fC(ch,pct){
-  if (ch==null||isNaN(ch)) return '—';
-  return (ch>=0?'&#9650; +':'&#9660; ') + fmt(Math.abs(ch),2) + ' (' + (ch>=0?'+':'') + fmt(pct,2) + '%)';
+  if(ch==null||isNaN(ch))return '—';
+  return (ch>=0?'&#9650; +':'&#9660; ')+fmt(Math.abs(ch),2)+' ('+(ch>=0?'+':'')+fmt(pct,2)+'%)';
 }
 function D(v){ return v==null?'nu':v>=0?'up':'dn'; }
 function sEl(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; }
@@ -476,8 +310,8 @@ function sHTML(id,v){ var e=document.getElementById(id); if(e) e.innerHTML=v; }
 // DOM INIT
 // ================================================================
 function initDOM(){
-  var mg = document.getElementById('mgrid');
-  if (mg) mg.innerHTML = MACROS.map(function(m){
+  var mg=document.getElementById('mgrid');
+  if(mg) mg.innerHTML=MACROS.map(function(m){
     return '<div class="mc '+m.cl+'"><div class="mi">'+m.ic+'</div>'+
            '<div class="ml">'+m.lb+'</div>'+
            '<div class="mv sk" id="mv-'+m.id+'">—</div>'+
@@ -485,8 +319,12 @@ function initDOM(){
            '<div class="mc2 nu" id="mc-'+m.id+'">—</div></div>';
   }).join('');
 
-  var mkg = document.getElementById('mkgrid');
-  if (mkg) mkg.innerHTML = MARKETS.map(function(m){
+  // Deduplicate markets for display
+  var seen={}, mktList=[];
+  MARKETS.forEach(function(m){ if(!seen[m.id]){seen[m.id]=1;mktList.push(m);} });
+
+  var mkg=document.getElementById('mkgrid');
+  if(mkg) mkg.innerHTML=mktList.map(function(m){
     return '<div class="mkc" id="mkc-'+m.id+'" data-r="'+m.r+'">'+
            '<div><div class="mkn">'+m.f+' '+m.n+'</div>'+
            '<div class="mko">'+m.c+'</div>'+
@@ -498,196 +336,178 @@ function initDOM(){
 }
 
 // ================================================================
-// RENDER
+// RENDER HELPERS
 // ================================================================
 function putMacro(id, d){
-  if (!d) return;
-  SD[id] = d;
-  var def = MACROS.find(function(x){ return x.id===id; });
-  var vE = document.getElementById('mv-'+id);
-  var cE = document.getElementById('mc-'+id);
-  if (vE){ vE.textContent = fmt(d.price, def?def.dec:2); vE.className = 'mv '+D(d.change); }
-  if (cE){ cE.innerHTML = fC(d.change,d.pct); cE.className = 'mc2 '+D(d.change); }
-  // Recalculate Gold MCX whenever gold or usdinr updates
-  if (id==='gold' || id==='usdinr') updateGoldMCX();
+  if(!d) return;
+  SD[id]=d;
+  var def=MACROS.find(function(x){return x.id===id;});
+  var vE=document.getElementById('mv-'+id), cE=document.getElementById('mc-'+id);
+  if(vE){vE.textContent=fmt(d.price,def?def.dec:2); vE.className='mv '+D(d.change);}
+  if(cE){cE.innerHTML=fC(d.change,d.pct); cE.className='mc2 '+D(d.change);}
+  if(id==='gold'||id==='usdinr') calcGoldMCX();
+  buildTicker();
 }
 
-function updateGoldMCX(){
-  var g = SD['gold'], u = SD['usdinr'];
-  if (!g || !u) return;
-  var goldRs = g.price * u.price * 10 / 31.1035;
-  var vE = document.getElementById('gv'), cE = document.getElementById('gc');
-  if (vE){ vE.textContent = fmt(goldRs,0); vE.classList.remove('sk'); }
-  if (cE){ cE.textContent = 'Rs/10g'; cE.className='ic_ nu'; }
+function calcGoldMCX(){
+  var g=SD['gold'], u=SD['usdinr'];
+  if(!g||!u) return;
+  // GLD ETF = ~1/10 troy oz gold. Gold Rs/10g = GLD*10 * USDINR * 10/31.1035
+  // Simpler: GLD price * USDINR * (10/31.1035) * 10
+  var goldRs = g.price * 10 * u.price * 10 / 31.1035;
+  var vE=document.getElementById('gv'), cE=document.getElementById('gc');
+  if(vE){vE.textContent=fmt(goldRs,0); vE.classList.remove('sk');}
+  if(cE){cE.textContent='Rs/10g'; cE.className='ic_ nu';}
 }
 
 function putIndia(id, d){
-  if (!d) return;
-  SD[id] = d;
-  var map = {
-    nifty:     ['nv','nc',2,true],
-    sensex:    ['sv','sc',0,false],
-    banknifty: ['bv','bc',0,false],
-    usdinr:    ['iv','ic2',2,false],
-  };
-  var m = map[id];
-  if (!m) return;
-  var vE = document.getElementById(m[0]), cE = document.getElementById(m[1]);
-  if (vE){ vE.textContent = fmt(d.price, m[2]); vE.classList.remove('sk'); }
-  if (cE){ cE.innerHTML = fC(d.change, d.pct); cE.className = 'ic_ '+D(d.change); }
+  if(!d) return;
+  SD[id]=d;
+  var map={nifty:['nv','nc',2,true],sensex:['sv','sc',0],banknifty:['bv','bc',0],usdinr:['iv','ic2',2]};
+  var m=map[id]; if(!m) return;
+  var vE=document.getElementById(m[0]), cE=document.getElementById(m[1]);
+  if(vE){vE.textContent=fmt(d.price,m[2]||2); vE.classList.remove('sk');}
+  if(cE){cE.innerHTML=fC(d.change,d.pct); cE.className='ic_ '+D(d.change);}
+  putMarket(id, d); // also update markets panel
 }
 
 function putMarket(id, d){
-  if (!d) return;
-  SD[id] = d;
-  var pE = document.getElementById('mkp-'+id);
-  var cE = document.getElementById('mkch-'+id);
-  var sE = document.getElementById('mks-'+id);
-  if (pE){ pE.textContent = fmt(d.price,2); pE.classList.remove('sk'); pE.className = 'mkp '+D(d.change); }
-  if (cE){ cE.innerHTML = fC(d.change,d.pct); cE.className = 'mkch '+D(d.change); }
-  if (sE){ sE.textContent = d.change>=0?'GAINING':'DECLINING'; sE.className='mks '+D(d.change); }
-  updateScoreboard();
+  if(!d) return;
+  SD[id]=d;
+  var pE=document.getElementById('mkp-'+id);
+  var cE=document.getElementById('mkch-'+id);
+  var sE=document.getElementById('mks-'+id);
+  if(pE){pE.textContent=fmt(d.price,2); pE.classList.remove('sk'); pE.className='mkp '+D(d.change);}
+  if(cE){cE.innerHTML=fC(d.change,d.pct); cE.className='mkch '+D(d.change);}
+  if(sE){sE.textContent=d.change>=0?'GAINING':'DECLINING'; sE.className='mks '+D(d.change);}
+  updateScore();
+  buildTicker();
 }
 
-function updateScoreboard(){
+function updateScore(){
   var up=0,dn=0;
-  MARKETS.forEach(function(m){ if(SD[m.id]) SD[m.id].change>=0?up++:dn++; });
+  var seen={};
+  MARKETS.forEach(function(m){
+    if(seen[m.id]) return; seen[m.id]=1;
+    if(SD[m.id]) SD[m.id].change>=0?up++:dn++;
+  });
   sEl('sb-up',up); sEl('sb-dn',dn);
 }
 
 function buildTicker(){
-  var ids = ['btc','eth','gold','crude','usdinr','dxy','vix','tnote','silver','brent','natgas','eurusd'];
-  var lb  = {btc:'BTC',eth:'ETH',gold:'GOLD',crude:'CRUDE',usdinr:'USD/INR',dxy:'DXY',vix:'VIX',tnote:'US10Y',silver:'SILVER',brent:'BRENT',natgas:'NATGAS',eurusd:'EUR/USD'};
-  var filled = ids.filter(function(id){ return SD[id]; });
-  if (!filled.length) return;
-  var html = filled.concat(filled).map(function(id){
-    var d = SD[id];
-    var pr = fmt(d.price, id==='btc'?0:2);
-    var pc = (d.pct>=0?'+':'') + fmt(d.pct,2) + '%';
-    return '<div class="ti2"><span class="tn2">'+lb[id]+'</span><span class="tv2">'+pr+'</span><span class="'+(d.pct>=0?'up':'dn')+'">'+pc+'</span></div>';
+  var ids=['btc','eth','gold','crude','usdinr','dxy','vix','tnote','silver','brent','natgas','eurusd'];
+  var lb={btc:'BTC',eth:'ETH',gold:'GOLD',crude:'CRUDE',usdinr:'USD/INR',dxy:'DXY',vix:'VIX',tnote:'US10Y',silver:'SILVER',brent:'BRENT',natgas:'NATGAS',eurusd:'EUR/USD'};
+  var filled=ids.filter(function(id){return SD[id];});
+  if(!filled.length) return;
+  var html=filled.concat(filled).map(function(id){
+    var d=SD[id];
+    return '<div class="ti2"><span class="tn2">'+lb[id]+'</span><span class="tv2">'+fmt(d.price,id==='btc'?0:2)+'</span><span class="'+(d.pct>=0?'up':'dn')+'">'+(d.pct>=0?'+':'')+fmt(d.pct,2)+'%</span></div>';
   }).join('');
-  sHTML('tki', html);
-}
-
-function buildLegend(sources){
-  var colors = {'CoinGecko':'#a855f7','ExchangeRate':'#22d3ee','Frankfurter':'#22d3ee','Metals.live':'#f0a500','Stooq':'#00ff88'};
-  var seen = {};
-  var html = Object.keys(sources).map(function(src){
-    return '<span class="api-pill" style="color:'+((colors[src])||'#5a8aaa')+';border-color:'+((colors[src])||'#5a8aaa')+'22;background:'+((colors[src])||'#5a8aaa')+'11">'+src+': '+sources[src]+'</span>';
-  }).join('');
-  sHTML('api-legend', '<span style="font-family:var(--ft);font-size:.52rem;color:var(--td)">Data sources: </span>'+html);
+  sHTML('tki',html);
 }
 
 // ================================================================
-// MAIN LOAD — All categories fire in parallel, indices sequential
+// MAIN LOAD
 // ================================================================
 function loadData(){
-  var mst = document.getElementById('mst');
-  if (mst){ mst.textContent='Loading...'; mst.className='sp ld_'; }
-
-  var now = getNow();
+  var mst=document.getElementById('mst');
+  if(mst){mst.textContent='Loading...';mst.className='sp ld_';}
+  var now=getNow();
   sEl('mt2','LIVE: '+now); sEl('it2','LIVE: '+now); sEl('mkt2','LIVE: '+now);
 
-  var sources = {};
-  var loaded = 0;
-  var TOTAL_CATEGORIES = 5; // crypto, forex, metals, commodities, indices+macro
-  var catDone = 0;
+  var total=0, loaded=0;
 
-  function catComplete(){
-    catDone++;
-    buildTicker();
-    buildLegend(sources);
-    if (catDone >= TOTAL_CATEGORIES){
-      var t = getNow();
-      sEl('ssync', t);
-      if (mst){
-        mst.textContent = 'LIVE '+t+' ('+loaded+' loaded)';
-        mst.className = loaded>20 ? 'sp ok':'sp ld_';
-      }
-      scheduleNext(REFRESH_MIN);
+  function tick(id, d, renderFn){
+    if(d){loaded++; renderFn(id,d);}
+    if(mst) mst.textContent='Loading... ('+loaded+'/'+total+')';
+  }
+
+  // ---- COUNT TOTAL ----
+  // Macros + India stooq + Markets fh + Markets sq
+  var fhMarkets=MARKETS.filter(function(m){return m.src==='fh';});
+  var sqMarkets=MARKETS.filter(function(m){return m.src==='sq'&&m.id!=='nifty'&&m.id!=='sensex';});
+  total = MACROS.length + INDIA_SQ.length + fhMarkets.length + sqMarkets.length;
+
+  // ---- 1. MACROS via Finnhub (all parallel) ----
+  MACROS.forEach(function(m){
+    fhQuote(m.sym, m.id, function(id, d){
+      tick(id, d, putMacro);
+      checkDone();
+    });
+  });
+
+  // ---- 2. INDIA INDICES via Stooq (sequential) ----
+  var si=0;
+  function nextIndia(){
+    if(si>=INDIA_SQ.length) return;
+    var item=INDIA_SQ[si++];
+    stooqQuote(item.sym, item.id, function(id, d){
+      tick(id, d, putIndia);
+      checkDone();
+      nextIndia();
+    });
+  }
+  nextIndia();
+
+  // ---- 3. GLOBAL MARKETS via Finnhub (parallel) ----
+  fhMarkets.forEach(function(m){
+    fhQuote(m.sym, m.id, function(id, d){
+      tick(id, d, putMarket);
+      checkDone();
+    });
+  });
+
+  // ---- 4. REMAINING MARKETS via Stooq (sequential) ----
+  var smi=0;
+  function nextMkt(){
+    if(smi>=sqMarkets.length) return;
+    var item=sqMarkets[smi++];
+    stooqQuote(item.sym, item.id, function(id, d){
+      tick(id, d, putMarket);
+      checkDone();
+      nextMkt();
+    });
+  }
+  nextMkt();
+
+  // ---- DONE CHECK ----
+  var finalized=false;
+  function checkDone(){
+    if(finalized) return;
+    // Done when loaded >= 80% OR after 30s timeout
+    if(loaded >= Math.floor(total*0.8)){
+      finalized=true;
+      onDone();
     }
   }
+  setTimeout(function(){ if(!finalized){finalized=true; onDone();} }, 30000);
 
-  function got(id, d, renderFn, isIndia){
-    if (!d) return;
-    loaded++;
-    if (d.src) sources[d.src] = (sources[d.src]||0)+1;
-    renderFn(id, d);
-    if (isIndia) putIndia(id, d);
+  function onDone(){
+    var t=getNow();
+    sEl('ssync',t);
+    sEl('mt2','LIVE: '+t); sEl('it2','LIVE: '+t); sEl('mkt2','LIVE: '+t);
+    if(mst){
+      mst.textContent='LIVE '+t+' ('+loaded+'/'+total+')';
+      mst.className=loaded>=Math.floor(total*0.75)?'sp ok':'sp ld_';
+    }
     buildTicker();
-    if (mst){ mst.textContent='Loading... ('+loaded+')'; }
+    scheduleNext(REFRESH_MIN);
   }
-
-  // ---- PARALLEL CATEGORY FETCHES ----
-
-  // 1. CRYPTO (CoinGecko — 1 call for all)
-  fetchCrypto(function(res){
-    Object.keys(res).forEach(function(id){ got(id, res[id], putMacro, false); });
-    catComplete();
-  });
-
-  // 2. FOREX (ExchangeRate — 1 call for all)
-  fetchForex(function(res){
-    Object.keys(res).forEach(function(id){
-      got(id, res[id], putMacro, false);
-      if (id==='usdinr') putIndia('usdinr', res[id]);
-    });
-    catComplete();
-  });
-
-  // 3. METALS — Gold & Silver (Metals.live — 1 call)
-  fetchMetals(function(res){
-    Object.keys(res).forEach(function(id){ got(id, res[id], putMacro, false); });
-    catComplete();
-  });
-
-  // 4. COMMODITIES — Crude, Brent, NatGas (Stooq, parallel)
-  fetchCommodities(function(res){
-    Object.keys(res).forEach(function(id){ got(id, res[id], putMacro, false); });
-    catComplete();
-  });
-
-  // 5. INDICES + MACRO (Stooq, one by one to avoid rate limit)
-  var allIndices = INDEX_SYMS.concat(MACRO_STOOQ);
-  fetchIndicesSeq(allIndices,
-    function(id, d){
-      if (!d) return;
-      loaded++;
-      if (d.src) sources[d.src] = (sources[d.src]||0)+1;
-      // India indices
-      if (id==='nifty'||id==='sensex'||id==='banknifty') {
-        putIndia(id, d);
-        putMarket(id, d); // also show in markets section
-      }
-      // Global markets
-      else if (MARKETS.find(function(m){return m.id===id;})) {
-        putMarket(id, d);
-      }
-      // Macro (vix, dxy, tnote)
-      else {
-        putMacro(id, d);
-      }
-      buildTicker();
-      if (mst){ mst.textContent='Loading... ('+loaded+')'; }
-    },
-    function(){ catComplete(); }
-  );
 }
 
 // ================================================================
 // SCHEDULE
 // ================================================================
 function scheduleNext(mins){
-  if (ntmr) clearTimeout(ntmr);
-  if (cdi)  clearInterval(cdi);
-  var rem = mins * 60;
-  cdi = setInterval(function(){
+  if(ntmr)clearTimeout(ntmr); if(cdi)clearInterval(cdi);
+  var rem=mins*60;
+  cdi=setInterval(function(){
     rem--;
-    var m=Math.floor(rem/60), s=rem%60;
+    var m=Math.floor(rem/60),s=rem%60;
     sEl('nxt',(m>0?m+'m ':'')+s+'s');
-    if (rem<=0) clearInterval(cdi);
+    if(rem<=0)clearInterval(cdi);
   },1000);
-  ntmr = setTimeout(loadData, mins*60*1000);
+  ntmr=setTimeout(loadData,mins*60*1000);
 }
 
 // ================================================================
@@ -723,8 +543,8 @@ function runAI(){
   sHTML('ai-body','<div class="aie"><div class="aetx">AI signals analyze ho rahe hain...</div></div>');
   var n=SD.nifty||{},g=SD.gold||{},c=SD.crude||{},v=SD.vix||{},d=SD.dxy||{},u=SD.usdinr||{},t=SD.tnote||{};
   var pr='Expert market analyst for Indian retail investors. Date: '+new Date().toDateString()+'\n'+
-    'Nifty='+(n.price||22900)+' Gold=$'+(g.price||2924)+' Crude=$'+(c.price||67)+
-    ' USD/INR='+(u.price||87)+' VIX='+(v.price||22)+' 10Y='+(t.price||4.3)+'% DXY='+(d.price||104)+'\n'+
+    'Nifty='+(n.price||22900)+' GLD ETF=$'+(g.price||290)+' USO ETF=$'+(c.price||67)+
+    ' USD/INR='+(u.price||87)+' VIX='+(v.price||22)+' US10Y='+(t.price||4.3)+'% UUP=$'+(d.price||28)+'\n'+
     'Return ONLY valid JSON:\n{"global_verdict":{"dir":"BULLISH","conf":"Moderate","sum":"2-3 lines Hinglish"},'+
     '"india_verdict":{"dir":"BULLISH","conf":"High","sum":"2-3 lines Hinglish"},'+
     '"global_analysis":"4-5 sentences","india_analysis":"4-5 sentences",'+
@@ -778,7 +598,7 @@ function runAI(){
 // BOOT
 // ================================================================
 function boot(){
-  if (document.getElementById('mgrid')){ initDOM(); loadData(); }
+  if(document.getElementById('mgrid')){ initDOM(); loadData(); }
   else { setTimeout(boot,100); }
 }
 boot();
